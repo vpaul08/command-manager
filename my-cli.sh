@@ -72,7 +72,8 @@ mainOpLabels+=("Test")
 mainOpLabels+=("Container")
 mainOpLabels+=("All")
 
-source /vidyard/DevTools/.vidyard_bashrc
+# Add any includes here
+# source /path-for-your-includes-or-dependencies
 
 function showMainOptions() {
   opLabelGroup=("${!1}")
