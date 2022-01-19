@@ -2,19 +2,11 @@
 
 # Color Codes
 RESET_COLOR='\033[0m'          # Text Reset
-
-BROWN='\033[0;1m'              # Brown
-BLACK='\033[0;30m'             # Black
-RED='\033[0;31m'               # Red
-GREEN='\033[0;32m'             # Green
-YELLOW='\033[0;33m'            # Yellow
-BLUE='\033[0;34m'              # Blue
-PINK='\033[0;35m'              # Pink
+C='\033[0;36m'                  # Default color setting
+CB='\033[0;1m'                 # Default color setting and bright a little bit
 CYAN='\033[0;36m'              # Cyan
-WHITE='\033[0;37m'             # White
-BLINK_BLUE='\033[5;34m'        # Blue blinking
-
-INVALID_INPUT_MSG='Please enter a valid input.'
+YELLOW='\033[0;33m'            # Yellow
+B_HI_WHITE='\033[0;1m'        # White
 
 mainOpLabels=()
 
@@ -26,16 +18,27 @@ testOpLabels=()
 testOpCmds=()
 containerOpLabels=()
 containerOpCmds=()
+slackOpLabels=()
+slackOpCmds=()
 allOpLabels=()
 allOpCmds=()
 quickOpLabels=()
 quickOpCmds=()
 
-sysOpLabels+=("Build")
-sysOpCmds+=("make")
+sysOpLabels+=("Launch Sandbox")
+sysOpCmds+=("make -C /vidyard/DevTools/sandbox bundle all")
 
-sysOpLabels+=("Build & Watch")
-sysOpCmds+=("make dev")
+sysOpLabels+=("Setup Sandbox for local Development")
+sysOpCmds+=("(cd ~/vidyard/DevTools/sandbox/skaffold; skaffold dev -f dashboard.yaml --cache-artifacts=true)")
+
+sysOpLabels+=("Start dashboard CLI")
+sysOpCmds+=("vy-exec dashboard -c web bash")
+
+sysOpLabels+=("Start dashboard rails console")
+sysOpCmds+=("vy-exec dashboard -c web -- bundle exec rails c")
+
+sysOpLabels+=("Show all routes")
+sysOpCmds+=("vy-exec dashboard -c web -- bundle exec rails routes")
 
 containerOpLabels+=("Force stop all Docker containers")
 containerOpCmds+=("docker stop $(docker ps -a -q)")
@@ -43,56 +46,87 @@ containerOpCmds+=("docker stop $(docker ps -a -q)")
 containerOpLabels+=("Force remove all Docker containers")
 containerOpCmds+=("docker rm -f $(docker ps -a -q)")
 
-containerOpLabels+=("Prune docker (aggressive)")
-containerOpCmds+=("docker system prune -a")
-
 containerOpLabels+=("Get Pods")
 containerOpCmds+=("kubectl get pods")
 
-containerOpLabels+=("Describe Service")
-containerOpCmds+=("kubectl logs service/{service_name} {container_name}")
-
-containerOpLabels+=("Describe Pods")
-containerOpCmds+=("kubectl describe pods {pod_name}-{pod_uuid} | less")
+containerOpLabels+=("Watch Pods")
+containerOpCmds+=("watch -n 3 kubectl get pods")
 
 testOpLabels+=("Run front-end unit tests")
-testOpCmds+=("npm t")
+testOpCmds+=("vy-exec dashboard -c test -- npm t")
 
 testOpLabels+=("Run back-end unit tests")
-testOpCmds+=("rspec")
+testOpCmds+=("vy-exec dashboard -c test -- rspec")
+
+testOpLabels+=("Run specific back-end test suite")
+testOpCmds+=("vy-exec dashboard -c test -- bundle exec rspec <relative-path-to-test-file>")
+
+testOpLabels+=("Run specific back-end unit test")
+testOpCmds+=("vy-exec dashboard -c test -- bundle exec rspec <relative-path-to-test-file>:<line-number>")
+
+testOpLabels+=("Run Guard")
+testOpCmds+=("vy-exec dashboard -c test -- bundle exec guard")
+
+testOpLabels+=("Run Rubocop")
+testOpCmds+=("vy-exec dashboard -c test -- bundle exec rubocop")
 
 testOpLabels+=("Run Linter")
-testOpCmds+=("yarn lint")
+testOpCmds+=("vy-exec dashboard -c test -- yarn lint")
 
-allOpLabels=( "${sysOpLabels[@]}" "${testOpLabels[@]}" "${containerOpLabels[@]}" )
-allOpCmds=( "${sysOpCmds[@]}" "${testOpCmds[@]}" "${containerOpCmds[@]}" )
+dbOpLabels+=("Run migrations")
+dbOpCmds+=("vy-exec dashboard -c web -- bundle exec rails db:migrate")
+
+dbOpLabels+=("Rollback migration")
+dbOpCmds+=("vy-exec dashboard -c web -- bundle exec rails db:rollback")
+
+dbOpLabels+=("Migration status")
+dbOpCmds+=("vy-exec dashboard -c web -- bundle exec rails db:migrate:status")
+
+slackOpLabels+=("Check named staging availability")
+slackOpCmds+=("bs list")
+
+slackOpLabels+=("Book named staging")
+slackOpCmds+=("bs book hulk 8 HOT-2713")
+
+slackOpLabels+=("Deploy on named staging")
+slackOpCmds+=("/staging_ecs_deploy staging staging-hulk-dashboard VidyardDashboard HOT-2713 --skip-drone")
+
+slackOpLabels+=("Deploy pusheen on prod")
+slackOpCmds+=("/ecs_deploy cpu production-pusheen Pusheen master")
+
+slackOpLabels+=("Deploy pusheen on staging")
+slackOpCmds+=("/staging_ecs_deploy staging-cpu staging-pusheen pusheen HOT-2713-bugfix --skip-drone")
+
+allOpLabels=( "${sysOpLabels[@]}" "${dbOpLabels[@]}" "${testOpLabels[@]}" "${containerOpLabels[@]}" "${slackOpLabels[@]}" )
+allOpCmds=( "${sysOpCmds[@]}" "${dbOpCmds[@]}" "${testOpCmds[@]}" "${containerOpCmds[@]}" "${slackOpCmds[@]}" )
 
 mainOpLabels+=("System")
+mainOpLabels+=("Database")
 mainOpLabels+=("Test")
 mainOpLabels+=("Container")
+mainOpLabels+=("Slack")
 mainOpLabels+=("All")
 
-# Add any includes here
-# source /path-for-your-includes-or-dependencies
+source /vidyard/DevTools/.vidyard_bashrc
 
 function showMainOptions() {
   opLabelGroup=("${!1}")
   echo -e "------------------------------------------------"
-  echo -e "${BLUE} #ID \t| Menu${RESET_COLOR}"
+  echo -e "${B_HI_WHITE} #ID \t| Menu${RESET_COLOR}"
   echo -e "------------------------------------------------"
   for index in ${!opLabelGroup[@]}; do
     COLOR_CODE=""
     if [[ $((index%2)) -ne 0 ]]; then
-      COLOR_CODE="${CYAN}"
+      COLOR_CODE="${C}"
     else
-      COLOR_CODE="${RESET_COLOR}"
+      COLOR_CODE="${CB}"
     fi
     echo -e " ${COLOR_CODE}$((index+1)) \t${RESET_COLOR}|${COLOR_CODE} ${opLabelGroup[index]}${RESET_COLOR}"
   done
   echo -e "------------------------------------------------"
 
   echo ""
-  echo -e "Enter the ${BROWN}Menu #ID${RESET_COLOR} to see the list of operations. To exit, just hit enter without entering any option: "
+  echo -e "Enter the ${B_HI_WHITE}Menu #ID${RESET_COLOR} to see the list of operations: "
   read opIndex
 
   if [ -z "${opIndex}" ] ; then
@@ -106,20 +140,26 @@ function showMainOptions() {
         showSubOptions sysOpLabels[@] sysOpCmds[@]
         ;;
       2)
-        showSubOptions testOpLabels[@] testOpCmds[@]
+        showSubOptions dbOpLabels[@] dbOpCmds[@]
         ;;
       3)
-        showSubOptions containerOpLabels[@] containerOpCmds[@]
+        showSubOptions testOpLabels[@] testOpCmds[@]
         ;;
       4)
+        showSubOptions containerOpLabels[@] containerOpCmds[@]
+        ;;
+      5)
+        showSubOptions slackOpLabels[@] slackOpCmds[@]
+        ;;
+      6)
         showSubOptions allOpLabels[@] allOpCmds[@]
         ;;
       *)
-        printError
+        echo "Please enter a valid input"
         ;;
     esac
   else
-    printError
+    echo "Please enter a valid input"
   fi
 }
 
@@ -127,22 +167,22 @@ function showSubOptions() {
   opLabelGroup=("${!1}")
   opCmdGroup=("${!2}")
   echo -e "------------------------------------------------"
-  echo -e "${BLUE} #ID \t| Operation${RESET_COLOR}"
+  echo -e "${B_HI_WHITE} #ID \t| Operation${RESET_COLOR}"
   echo -e "------------------------------------------------"
   for index in ${!opLabelGroup[@]}; do
     COLOR_CODE=""
     if [[ $((index%2)) -ne 0 ]]; then
-      COLOR_CODE="${CYAN}"
+      COLOR_CODE="${C}"
     else
-      COLOR_CODE="${RESET_COLOR}"
+      COLOR_CODE="${CB}"
     fi
     echo -e " ${COLOR_CODE}$((index+1)) \t${RESET_COLOR}|${COLOR_CODE} ${opLabelGroup[index]}${RESET_COLOR}"
   done
-  echo -e "${RED} 0 \t| Go Back${RESET_COLOR}"
+  echo -e " ${YELLOW}0 \t${RESET_COLOR}|${YELLOW} Goto Main Menu ${RESET_COLOR}"
   echo -e "------------------------------------------------"
 
   echo ""
-  echo -e "Enter the ${BROWN}Operation #ID${RESET_COLOR} to execute the operation: "
+  echo -e "Enter the ${B_HI_WHITE}Operation #ID${RESET_COLOR} to execute the operation: "
   read opIndex
 
   if [ -z "${opIndex}" ] ; then
@@ -154,7 +194,7 @@ function showSubOptions() {
     bootCli
   elif [[ $((opIndex)) -le ${#opCmdGroup[@]} ]] && [[ $((opIndex)) -gt 0 ]]; then
     echo -e "\nOperation: \n - ${CYAN}${opLabelGroup[$((opIndex-1))]}${RESET_COLOR}"
-    echo -e "\nCommand: \n - ${BROWN}${opCmdGroup[$((opIndex-1))]}${RESET_COLOR}\n"
+    echo -e "\nCommand: \n - ${B_HI_WHITE}${opCmdGroup[$((opIndex-1))]}${RESET_COLOR}\n"
     read -p "Would you like to execute or copy the above command [Y/y/C/c]?: " confirmChoice
     if [[ $confirmChoice ==  "Y" || $confirmChoice ==  "y" ]]; then
       output="${opCmdGroup[$((opIndex-1))]}"
@@ -165,13 +205,8 @@ function showSubOptions() {
       echo "$output" | pbcopy
     fi
   else
-    printError
+    echo "Please enter a valid input"
   fi
-}
-
-function printError() {
-  echo -e "\n$INVALID_INPUT_MSG"
-  echo -e "Exiting...\n"
 }
 
 function showBanner() {
